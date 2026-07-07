@@ -18,11 +18,18 @@ const fontId = ref(DEFAULT_FONT_ID)
 const size = ref(72)
 const inkId = ref(DEFAULT_INK_ID)
 const copied = ref(false)
+// Adobe Fonts (Typekit) を有効に読み込めたか
+const adobeReady = ref(false)
 
 // フォントはカテゴリで絞り込み、選択中フォントのカテゴリを初期表示にする
 const selectedCategory = ref<FontCategory>(getFont(DEFAULT_FONT_ID).category)
+// Adobe 提供フォントは、実際にロードできたときだけ一覧に出す
 const visibleFonts = computed(() =>
-  FONTS.filter((font) => font.category === selectedCategory.value),
+  FONTS.filter(
+    (font) =>
+      font.category === selectedCategory.value &&
+      (font.provider !== 'adobe' || adobeReady.value),
+  ),
 )
 
 const { theme } = useTheme()
@@ -113,11 +120,24 @@ function render() {
 /** フォント読み込み完了を待ってから描画（未ロードだと fallback で測定されるため） */
 async function reloadFontAndRender() {
   try {
-    await document.fonts.load(`${size.value}px "${getFont(fontId.value).name}"`)
+    // family 文字列の先頭（実 font-family 名）でロード判定。Google/Adobe 双方に対応
+    const primary = getFont(fontId.value).family.split(',')[0].trim()
+    await document.fonts.load(`${size.value}px ${primary}`)
   } catch {
     /* 失敗しても fallback で描画 */
   }
   render()
+}
+
+/** Adobe Fonts (Typekit) が有効に読み込めるか判定（無効なら一覧から隠す） */
+async function detectAdobeFonts() {
+  try {
+    await document.fonts.ready
+    const faces = await document.fonts.load('16px "learning-curve"')
+    adobeReady.value = faces.length > 0
+  } catch {
+    adobeReady.value = false
+  }
 }
 
 /** URL ハッシュから状態を復元（共有 URL を開いたとき） */
@@ -163,6 +183,7 @@ async function copyUrl() {
 
 onMounted(() => {
   readHash() // 共有 URL から状態を復元
+  detectAdobeFonts() // Adobe Fonts が有効なら Learning Curve を一覧に出す
   ro = new ResizeObserver(() => render())
   if (paperRef.value) ro.observe(paperRef.value)
   document.fonts.ready.then(render)
@@ -324,9 +345,6 @@ watch([() => text.value, fontId, size, inkId], writeHash)
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  max-height: 168px;
-  overflow-y: auto;
-  padding-right: var(--space-1);
 }
 .viewer__font {
   min-height: var(--tap);

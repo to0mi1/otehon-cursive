@@ -10,6 +10,8 @@ export interface HandFont {
   name: string /** 表示名（＝フォント名） */
   family: string /** CSS font-family */
   category: FontCategory
+  /** 配信元。'adobe' は kit が有効なときだけ一覧に表示する */
+  provider?: 'google' | 'adobe'
 }
 
 export const FONT_CATEGORIES: { id: FontCategory; label: string }[] = [
@@ -47,7 +49,15 @@ export const FONTS: HandFont[] = [
   f('architects', 'Architects Daughter', 'casual'),
   f('gochi', 'Gochi Hand', 'casual'),
   f('patrick', 'Patrick Hand', 'casual'),
-  // 学習用（教科書・鉛筆風の読みやすい手書き）
+  // 学習用（筆記体ワークシート・鉛筆風の読みやすい手書き）
+  // Learning Curve は Adobe Fonts (Typekit) 配信（index.html の kit CSS）
+  {
+    id: 'learning-curve',
+    name: 'Learning Curve',
+    family: "'learning-curve', cursive",
+    category: 'learning',
+    provider: 'adobe',
+  },
   f('homemade', 'Homemade Apple', 'learning'),
   f('schoolbell', 'Schoolbell', 'learning'),
   f('coming-soon', 'Coming Soon', 'learning'),
