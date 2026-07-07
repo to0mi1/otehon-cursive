@@ -17,6 +17,7 @@ const text = ref('Hello, world!')
 const fontId = ref(DEFAULT_FONT_ID)
 const size = ref(72)
 const inkId = ref(DEFAULT_INK_ID)
+const copied = ref(false)
 
 // フォントはカテゴリで絞り込み、選択中フォントのカテゴリを初期表示にする
 const selectedCategory = ref<FontCategory>(getFont(DEFAULT_FONT_ID).category)
@@ -119,7 +120,49 @@ async function reloadFontAndRender() {
   render()
 }
 
+/** URL ハッシュから状態を復元（共有 URL を開いたとき） */
+function readHash() {
+  const params = new URLSearchParams(location.hash.replace(/^#/, ''))
+  if (params.get('view') !== 'maker') return
+  const t = params.get('t')
+  if (t !== null) text.value = t
+  const fid = params.get('f')
+  if (fid) {
+    const font = getFont(fid)
+    fontId.value = font.id
+    selectedCategory.value = font.category
+  }
+  const s = params.get('s')
+  if (s) size.value = Math.min(140, Math.max(32, Number(s) || size.value))
+  const ink = params.get('ink')
+  if (ink) inkId.value = getInk(ink).id
+}
+
+/** 現在の状態を URL ハッシュに書き出す（履歴を汚さない replaceState） */
+function writeHash() {
+  const params = new URLSearchParams()
+  params.set('view', 'maker')
+  params.set('t', text.value)
+  params.set('f', fontId.value)
+  params.set('s', String(size.value))
+  params.set('ink', inkId.value)
+  history.replaceState(null, '', `#${params.toString()}`)
+}
+
+/** 共有 URL をクリップボードにコピー */
+async function copyUrl() {
+  writeHash()
+  try {
+    await navigator.clipboard.writeText(location.href)
+    copied.value = true
+    window.setTimeout(() => (copied.value = false), 1600)
+  } catch {
+    /* クリップボード非対応環境では無視 */
+  }
+}
+
 onMounted(() => {
+  readHash() // 共有 URL から状態を復元
   ro = new ResizeObserver(() => render())
   if (paperRef.value) ro.observe(paperRef.value)
   document.fonts.ready.then(render)
@@ -130,6 +173,8 @@ onBeforeUnmount(() => ro?.disconnect())
 // フォント・サイズはロードし直してから、テキスト・テーマ・インクはそのまま再描画
 watch([fontId, size], reloadFontAndRender)
 watch([() => text.value, theme, inkId], render)
+// 状態が変わったら共有 URL（ハッシュ）を更新
+watch([() => text.value, fontId, size, inkId], writeHash)
 </script>
 
 <template>
@@ -194,6 +239,10 @@ watch([() => text.value, theme, inkId], render)
       </label>
 
       <InkPicker v-model="inkId" />
+
+      <button type="button" class="viewer__share" @click="copyUrl">
+        {{ copied ? '✓ コピーしました' : '🔗 共有URLをコピー' }}
+      </button>
     </section>
 
     <section ref="paperRef" class="viewer__paper" aria-label="お手本表示">
@@ -309,6 +358,24 @@ watch([() => text.value, theme, inkId], render)
   font-weight: 600;
   color: var(--text);
   min-width: 3.5em;
+}
+.viewer__share {
+  align-self: flex-start;
+  min-height: var(--tap);
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--accent-contrast);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  transition: background 0.15s, transform 0.1s;
+}
+.viewer__share:hover {
+  background: var(--accent-hover);
+}
+.viewer__share:active {
+  transform: scale(0.97);
 }
 .viewer__paper {
   min-height: 200px;

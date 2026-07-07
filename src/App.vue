@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import AppHeader from './components/AppHeader.vue'
 import SectionNav from './components/SectionNav.vue'
 import ModeTabs from './components/ModeTabs.vue'
@@ -18,7 +18,20 @@ import { useTheme } from './composables/useTheme'
 // テーマ（ライト/ダーク）を初期化し data-theme を反映
 useTheme()
 
-const section = ref<Section>('practice')
+// 共有 URL（お手本メーカー）で開かれた場合はそのセクションを初期表示
+function initialSection(): Section {
+  const params = new URLSearchParams(location.hash.replace(/^#/, ''))
+  return params.get('view') === 'maker' ? 'viewer' : 'practice'
+}
+
+const section = ref<Section>(initialSection())
+
+// お手本メーカー以外へ移動したら共有ハッシュを消す
+watch(section, (s) => {
+  if (s !== 'viewer') {
+    history.replaceState(null, '', location.pathname + location.search)
+  }
+})
 
 // --- 練習セクションの状態 ---
 const mode = ref<Mode>('specimen')
