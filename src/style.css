@@ -1,0 +1,206 @@
+/* =========================================================================
+   デザイントークン（ライト / ダーク）
+   - UI 配色は CSS 変数で管理。
+   - Canvas の描画色（インク・罫線）は CSS では変えられないため、
+     composables/useTheme.ts + data/inks.ts の JS 側パレットで扱う。
+   ========================================================================= */
+:root {
+  /* 面 */
+  --bg: #f7f6f2; /* 温かみのある紙色 */
+  --bg-grid: #efeee7;
+  --surface: #ffffff;
+  --surface-2: #f2f0ea;
+  --surface-hover: #eceae2;
+
+  /* 文字 */
+  --text: #2b2b33;
+  --text-muted: #6f6f7a;
+  --text-faint: #9a9aa4;
+
+  /* 線・枠 */
+  --border: #e4e2da;
+  --border-strong: #d5d3c9;
+
+  /* アクセント（インディゴ） */
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-contrast: #ffffff;
+  --accent-weak: rgba(79, 70, 229, 0.1);
+  --ring: rgba(79, 70, 229, 0.45);
+
+  /* 影 */
+  --shadow-sm: 0 1px 2px rgba(20, 20, 30, 0.06), 0 1px 3px rgba(20, 20, 30, 0.08);
+  --shadow-md: 0 4px 12px rgba(20, 20, 30, 0.08), 0 2px 4px rgba(20, 20, 30, 0.05);
+  --shadow-lg: 0 12px 32px rgba(20, 20, 30, 0.12), 0 4px 8px rgba(20, 20, 30, 0.06);
+
+  /* 形状・間隔（8px グリッド基準） */
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* タイポ（UI 全体は上品な明朝 Shippori Mincho で統一） */
+  --sans: 'Shippori Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho',
+    'Noto Serif JP', serif;
+
+  /* レイアウト */
+  --content-max: 1120px;
+  --tap: 44px; /* 最小タッチターゲット */
+
+  color-scheme: light dark;
+  font: 16px/1.6 var(--sans);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ダーク配色。システム連動（prefers-color-scheme）と
+   手動トグル（html[data-theme='dark']）の両方に対応。
+   明示的にライトを選んだ場合（[data-theme='light']）はシステムがダークでも適用しない。 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #14151a;
+    --bg-grid: #1a1c22;
+    --surface: #1c1e26;
+    --surface-2: #23252f;
+    --surface-hover: #2a2c37;
+
+    --text: #e9e9ee;
+    --text-muted: #9b9ba7;
+    --text-faint: #71717e;
+
+    --border: #2f313c;
+    --border-strong: #3a3c48;
+
+    --accent: #818cf8;
+    --accent-hover: #a5b0ff;
+    --accent-contrast: #14151a;
+    --accent-weak: rgba(129, 140, 248, 0.14);
+    --ring: rgba(129, 140, 248, 0.5);
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55), 0 4px 8px rgba(0, 0, 0, 0.4);
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #14151a;
+  --bg-grid: #1a1c22;
+  --surface: #1c1e26;
+  --surface-2: #23252f;
+  --surface-hover: #2a2c37;
+
+  --text: #e9e9ee;
+  --text-muted: #9b9ba7;
+  --text-faint: #71717e;
+
+  --border: #2f313c;
+  --border-strong: #3a3c48;
+
+  --accent: #818cf8;
+  --accent-hover: #a5b0ff;
+  --accent-contrast: #14151a;
+  --accent-weak: rgba(129, 140, 248, 0.14);
+  --ring: rgba(129, 140, 248, 0.5);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55), 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* =========================================================================
+   リセット
+   ========================================================================= */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--bg);
+}
+
+h1,
+h2,
+h3,
+p,
+figure {
+  margin: 0;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* スクリーンリーダー専用 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* モーション控えめ設定の尊重 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* =========================================================================
+   印刷（練習シート用）
+   - 画面 UI（.no-print）を隠し、白背景で練習シートだけを A4 に出す
+   ========================================================================= */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+  :root {
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
