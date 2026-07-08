@@ -19,6 +19,35 @@ export function strokesLength(strokes: Point[][]): number {
   return len
 }
 
+/** 3 次ベジェ 1 区間の制御点（始点→to へ c1,c2 経由で描く） */
+export interface BezierSegment {
+  c1: Point
+  c2: Point
+  to: Point
+}
+
+/**
+ * 点列を Catmull-Rom スプラインとして 3 次ベジェ区間列に変換する。
+ * 全点を通りつつ角を丸めるため、直線連結で生じるカクつきを解消できる。
+ * 端点は自身を複製して自然な接線にする。区間は各 points[i]→points[i+1]。
+ */
+export function catmullRomBeziers(points: Point[]): BezierSegment[] {
+  const n = points.length
+  const segs: BezierSegment[] = []
+  for (let i = 0; i < n - 1; i++) {
+    const p0 = points[i === 0 ? 0 : i - 1]
+    const p1 = points[i]
+    const p2 = points[i + 1]
+    const p3 = points[i + 2 < n ? i + 2 : n - 1]
+    segs.push({
+      c1: { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 },
+      c2: { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 },
+      to: { x: p2.x, y: p2.y },
+    })
+  }
+  return segs
+}
+
 export interface TakenPolyline {
   /** 先頭から maxLen の距離まで切り出した点列（終端は線形補間） */
   points: Point[]

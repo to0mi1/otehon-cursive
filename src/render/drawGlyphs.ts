@@ -2,7 +2,7 @@ import type { Point } from '../types/glyph'
 import type { GlyphLayout } from '../composables/useGlyphLayout'
 import type { Theme } from '../composables/useTheme'
 import { GUIDE } from '../data/metrics'
-import { polylineLength, strokesLength, takePolyline } from './geometry'
+import { catmullRomBeziers, polylineLength, strokesLength, takePolyline } from './geometry'
 
 /* -------------------------------------------------------------------------
    このモジュールは Vue 非依存の純粋な Canvas 描画関数群。
@@ -85,10 +85,16 @@ function drawStroke(
   ox: number,
   oy: number,
 ): void {
+  // フォント座標 → canvas 座標（Y 反転）に変換してから滑らかに結ぶ
+  const pts = points.map((p) => ({ x: ox + p.x, y: oy - p.y }))
   ctx.beginPath()
-  ctx.moveTo(ox + points[0].x, oy - points[0].y)
-  for (let i = 1; i < points.length; i++) {
-    ctx.lineTo(ox + points[i].x, oy - points[i].y)
+  ctx.moveTo(pts[0].x, pts[0].y)
+  if (pts.length === 2) {
+    ctx.lineTo(pts[1].x, pts[1].y)
+  } else {
+    for (const s of catmullRomBeziers(pts)) {
+      ctx.bezierCurveTo(s.c1.x, s.c1.y, s.c2.x, s.c2.y, s.to.x, s.to.y)
+    }
   }
   ctx.stroke()
 }
@@ -161,11 +167,16 @@ export function layoutToSvgPaths(layout: GlyphLayout): string[] {
     for (const item of line.items) {
       for (const stroke of item.glyph.strokes) {
         if (stroke.length < 2) continue
-        stroke.forEach((p, i) => {
-          const X = r(item.x + p.x)
-          const Y = r(line.baselineY - p.y)
-          d += i === 0 ? `M${X} ${Y}` : `L${X} ${Y}`
-        })
+        // canvas と同じ Catmull-Rom スムージングで印刷も滑らかにする
+        const pts = stroke.map((p) => ({ x: item.x + p.x, y: line.baselineY - p.y }))
+        d += `M${r(pts[0].x)} ${r(pts[0].y)}`
+        if (pts.length === 2) {
+          d += `L${r(pts[1].x)} ${r(pts[1].y)}`
+        } else {
+          for (const s of catmullRomBeziers(pts)) {
+            d += `C${r(s.c1.x)} ${r(s.c1.y)} ${r(s.c2.x)} ${r(s.c2.y)} ${r(s.to.x)} ${r(s.to.y)}`
+          }
+        }
       }
     }
     if (d) paths.push(d)
