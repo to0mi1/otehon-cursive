@@ -12,7 +12,7 @@ import PracticeSheet from './components/PracticeSheet.vue'
 import FontSpecimen from './components/FontSpecimen.vue'
 import type { Mode, Section } from './types/ui'
 import { DEFAULT_TEXT } from './data/words'
-import { DEFAULT_INK_ID } from './data/inks'
+import { DEFAULT_INK_ID, getInk } from './data/inks'
 import { useTheme } from './composables/useTheme'
 
 // テーマ（ライト/ダーク）を初期化し data-theme を反映
@@ -33,9 +33,16 @@ let syncingFromUrl = false
 
 function readNav() {
   const params = new URLSearchParams(location.hash.slice(1))
-  section.value = params.get('view') === 'maker' ? 'viewer' : 'practice'
+  const isMaker = params.get('view') === 'maker'
+  section.value = isMaker ? 'viewer' : 'practice'
+  // お手本メーカーの URL からは練習の状態を復元しない（t/ink の意味が異なるため）
+  if (isMaker) return
   const m = params.get('mode')
   if (m && (MODES as string[]).includes(m)) mode.value = m as Mode
+  const t = params.get('t')
+  if (t !== null) text.value = t
+  const ink = params.get('ink')
+  if (ink) inkId.value = getInk(ink).id
 }
 
 function writeNav(push: boolean) {
@@ -46,8 +53,10 @@ function writeNav(push: boolean) {
   } else {
     params.set('view', 'practice')
     params.set('mode', mode.value)
-    // お手本メーカー用のパラメータは練習では掃除する
-    for (const k of ['t', 'f', 's', 'ink']) params.delete(k)
+    params.set('t', text.value)
+    params.set('ink', inkId.value)
+    // お手本メーカー専用パラメータ（フォント / サイズ）は練習では掃除する
+    for (const k of ['f', 's']) params.delete(k)
   }
   const url = `${location.pathname}${location.search}#${params.toString()}`
   if (push) history.pushState(null, '', url)
@@ -67,10 +76,16 @@ onMounted(() => {
 })
 onBeforeUnmount(() => window.removeEventListener('popstate', onPopState))
 
-// section / mode の変更を履歴に積む（popstate 由来の変更は積まない）
+// section / mode の切り替えは履歴に積む（戻る/進むで行き来できる）
 watch([section, mode], () => {
   if (syncingFromUrl) return
   writeNav(true)
+})
+
+// テキスト / インクは頻繁に変わるので履歴は汚さず共有 URL だけ更新する
+watch([text, inkId], () => {
+  if (syncingFromUrl) return
+  writeNav(false)
 })
 </script>
 
