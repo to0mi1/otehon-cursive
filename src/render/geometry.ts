@@ -27,21 +27,41 @@ export interface BezierSegment {
 }
 
 /**
- * 点列を Catmull-Rom スプラインとして 3 次ベジェ区間列に変換する。
+ * 点列を centripetal Catmull-Rom スプライン（α=0.5）として 3 次ベジェ区間列に変換する。
  * 全点を通りつつ角を丸めるため、直線連結で生じるカクつきを解消できる。
- * 端点は自身を複製して自然な接線にする。区間は各 points[i]→points[i+1]。
+ * 一様パラメータ化と違い、点の間隔が不均一でも波打ち・オーバーシュートを抑えられる。
+ * 端点は隣接点をミラー外挿して自然な接線にする。区間は各 points[i]→points[i+1]。
  */
 export function catmullRomBeziers(points: Point[]): BezierSegment[] {
   const n = points.length
   const segs: BezierSegment[] = []
+  if (n < 2) return segs
+
+  const EPS = 1e-6
+  // centripetal: ノット間隔を距離^0.5 にする（0 は EPS でゼロ割回避）
+  const knot = (a: Point, b: Point) =>
+    Math.max(Math.sqrt(Math.hypot(b.x - a.x, b.y - a.y)), EPS)
+
   for (let i = 0; i < n - 1; i++) {
-    const p0 = points[i === 0 ? 0 : i - 1]
     const p1 = points[i]
     const p2 = points[i + 1]
-    const p3 = points[i + 2 < n ? i + 2 : n - 1]
+    // 端点は隣接点の鏡像を仮想的な制御点として使う
+    const p0 = i > 0 ? points[i - 1] : { x: 2 * p1.x - p2.x, y: 2 * p1.y - p2.y }
+    const p3 = i + 2 < n ? points[i + 2] : { x: 2 * p2.x - p1.x, y: 2 * p2.y - p1.y }
+
+    const d1 = knot(p0, p1)
+    const d2 = knot(p1, p2)
+    const d3 = knot(p2, p3)
+
+    // 非一様 Catmull-Rom の接線（p1 側 m1 / p2 側 m2）
+    const m1x = (p2.x - p1.x) / d2 - (p2.x - p0.x) / (d1 + d2) + (p1.x - p0.x) / d1
+    const m1y = (p2.y - p1.y) / d2 - (p2.y - p0.y) / (d1 + d2) + (p1.y - p0.y) / d1
+    const m2x = (p3.x - p2.x) / d3 - (p3.x - p1.x) / (d2 + d3) + (p2.x - p1.x) / d2
+    const m2y = (p3.y - p2.y) / d3 - (p3.y - p1.y) / (d2 + d3) + (p2.y - p1.y) / d2
+
     segs.push({
-      c1: { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 },
-      c2: { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 },
+      c1: { x: p1.x + (m1x * d2) / 3, y: p1.y + (m1y * d2) / 3 },
+      c2: { x: p2.x - (m2x * d2) / 3, y: p2.y - (m2y * d2) / 3 },
       to: { x: p2.x, y: p2.y },
     })
   }
