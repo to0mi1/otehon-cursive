@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppHeader from './components/AppHeader.vue'
 import SectionNav from './components/SectionNav.vue'
 import ModeTabs from './components/ModeTabs.vue'
@@ -18,25 +18,60 @@ import { useTheme } from './composables/useTheme'
 // テーマ（ライト/ダーク）を初期化し data-theme を反映
 useTheme()
 
-// 共有 URL（お手本メーカー）で開かれた場合はそのセクションを初期表示
-function initialSection(): Section {
-  const params = new URLSearchParams(location.hash.replace(/^#/, ''))
-  return params.get('view') === 'maker' ? 'viewer' : 'practice'
-}
+const MODES: Mode[] = ['animation', 'specimen', 'trace', 'sheet']
 
-const section = ref<Section>(initialSection())
-
-// お手本メーカー以外へ移動したら共有ハッシュを消す
-watch(section, (s) => {
-  if (s !== 'viewer') {
-    history.replaceState(null, '', location.pathname + location.search)
-  }
-})
+const section = ref<Section>('practice')
 
 // --- 練習セクションの状態 ---
 const mode = ref<Mode>('specimen')
 const text = ref(DEFAULT_TEXT)
 const inkId = ref(DEFAULT_INK_ID)
+
+// --- URL とナビゲーション（section / mode）の同期 ---
+// 切り替えを履歴に積み、ブラウザの戻る/進むで行き来できるようにする。
+let syncingFromUrl = false
+
+function readNav() {
+  const params = new URLSearchParams(location.hash.slice(1))
+  section.value = params.get('view') === 'maker' ? 'viewer' : 'practice'
+  const m = params.get('mode')
+  if (m && (MODES as string[]).includes(m)) mode.value = m as Mode
+}
+
+function writeNav(push: boolean) {
+  const params = new URLSearchParams(location.hash.slice(1))
+  if (section.value === 'viewer') {
+    params.set('view', 'maker')
+    params.delete('mode')
+  } else {
+    params.set('view', 'practice')
+    params.set('mode', mode.value)
+    // お手本メーカー用のパラメータは練習では掃除する
+    for (const k of ['t', 'f', 's', 'ink']) params.delete(k)
+  }
+  const url = `${location.pathname}${location.search}#${params.toString()}`
+  if (push) history.pushState(null, '', url)
+  else history.replaceState(null, '', url)
+}
+
+function onPopState() {
+  syncingFromUrl = true
+  readNav()
+  syncingFromUrl = false
+}
+
+onMounted(() => {
+  readNav() // 初期 URL（共有リンク等）から復元
+  writeNav(false) // URL を正規化（履歴は増やさない）
+  window.addEventListener('popstate', onPopState)
+})
+onBeforeUnmount(() => window.removeEventListener('popstate', onPopState))
+
+// section / mode の変更を履歴に積む（popstate 由来の変更は積まない）
+watch([section, mode], () => {
+  if (syncingFromUrl) return
+  writeNav(true)
+})
 </script>
 
 <template>

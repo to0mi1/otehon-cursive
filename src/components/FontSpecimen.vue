@@ -62,6 +62,7 @@ function render() {
   ctx.font = `${baseSize}px ${family}`
   ctx.textBaseline = 'alphabetic'
   ctx.textAlign = 'left'
+  ctx.fontKerning = 'normal' // カーニングを明示（リガチャ/接続はシェイピングで自動適用）
   const hg = ctx.measureText('Hg')
   const ascent = hg.fontBoundingBoxAscent || baseSize * 0.8
   const descent = hg.fontBoundingBoxDescent || baseSize * 0.25
